@@ -169,6 +169,7 @@ extern bool setting_render_displayVideo;
 extern bool setting_render_displayDepth;
 extern bool setting_render_displaySelection;
 extern bool setting_render_displaySaliency;
+extern bool setting_render_displayBlur;
 extern bool setting_render_displayKF;
 
 extern bool setting_fullResetRequested;
@@ -223,6 +224,7 @@ extern int staticPatternPadding[10];
 // Saliency
 #define USE_SALIENCY_SAMPLING true
 #define USE_SALIENCY (USE_SALIENCY_SAMPLING)
+#define USE_BLUR (USE_SALIENCY)
 
 // Smoothing
 #define USE_BLOB false

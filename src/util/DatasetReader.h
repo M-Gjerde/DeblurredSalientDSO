@@ -294,70 +294,65 @@ private:
 	}
 
 	inline void loadTimestamps()
-	{
-		std::ifstream tr;
-		std::string timesFile = path.substr(0,path.find_last_of('/')) + "/times.txt";
-		// printf(timesFile.c_str());
-		tr.open(timesFile.c_str());
-		while(!tr.eof() && tr.good())
-		{
-			std::string line;
-			char buf[1000];
-			tr.getline(buf, 1000);
+    {
+        std::ifstream tr;
+        std::size_t pos = path.find_last_of('/');
+        pos = path.find_last_of('/', pos - 1);
+        std::string folderName = path.substr(pos + 1); // Get the last folder name
+        std::string timesFile;
+        printf("FolderName: %s\n", folderName.c_str());
+        if (folderName == "deblurred/data") {
+            pos = path.find_last_of('/', pos - 1);
+            timesFile = path.substr(0, pos)  + "/cam0" + "/times.txt";
+        } else {
+            timesFile = path.substr(0, pos) + "/cam0" + "/times.txt";
+        }
 
-			int id;
-			double stamp;
-			float exposure = 0;
+        tr.open(timesFile.c_str());
+        printf("Checking for timestamps at: %s\n", timesFile.c_str());
 
-			if(3 == sscanf(buf, "%d %lf %f", &id, &stamp, &exposure))
-			{
-				timestamps.push_back(stamp);
-				exposures.push_back(exposure);
-			}
+        while(!tr.eof() && tr.good())
+        {
+            std::string line;
+            char buf[1000];
+            tr.getline(buf, 1000);
 
-			else if(2 == sscanf(buf, "%d %lf", &id, &stamp))
-			{
-				timestamps.push_back(stamp);
-				exposures.push_back(exposure);
-			}
-			// printf("timestamp %lf", stamp);
-		}
-		tr.close();
+            long long id;
+            double stamp;
+            float exposure = 0;
 
-		// check if exposures are correct, (possibly skip)
-		bool exposuresGood = ((int)exposures.size()==(int)getNumImages()) ;
-		for(int i=0;i<(int)exposures.size();i++)
-		{
-			if(exposures[i] == 0)
-			{
-				// fix!
-				float sum=0,num=0;
-				if(i>0 && exposures[i-1] > 0) {sum += exposures[i-1]; num++;}
-				if(i+1<(int)exposures.size() && exposures[i+1] > 0) {sum += exposures[i+1]; num++;}
+            if(3 == sscanf(buf, "%lld %lf %f", &id, &stamp, &exposure))
+            {
+                ids.push_back(id);
+                timestamps.push_back(stamp);
+                exposures.push_back(exposure);
+            }
 
-				if(num>0)
-					exposures[i] = sum/num;
-			}
+            else if(2 == sscanf(buf, "%lld %lf", &id, &stamp))
+            {
+                ids.push_back(id);
+                timestamps.push_back(stamp);
+                exposures.push_back(exposure);
+            }
 
-			if(exposures[i] == 0) exposuresGood=false;
-		}
+        }
 
+        if((int)getNumImages() != (int)timestamps.size())
+        {
+            printf("set timestamps and exposures to zero! Got %d images and %zu timestamps\n", getNumImages(), timestamps.size());
+            exposures.clear();
+            timestamps.clear();
+        }
 
-		if((int)getNumImages() != (int)timestamps.size())
-		{
-			printf("set timestamps and exposures to zero!\n");
-			exposures.clear();
-			timestamps.clear();
-		}
+        if((int)getNumImages() != (int)exposures.size())
+        {
+            printf("set EXPOSURES to zero! Got %d images and %zu exposures\n", getNumImages(), exposures.size());
+            exposures.clear();
+        }
 
-		if((int)getNumImages() != (int)exposures.size() || !exposuresGood)
-		{
-			printf("set EXPOSURES to zero!\n");
-			exposures.clear();
-		}
-
-		printf("got %d images and %d timestamps and %d exposures.!\n", (int)getNumImages(), (int)timestamps.size(), (int)exposures.size());
-	}
+        printf("got %d images and %d timestamps and %d exposures.!\n", (int)getNumImages(), (int)timestamps.size(), (int)exposures.size());
+        tr.close();
+    }
 
 
 
@@ -365,7 +360,8 @@ private:
 	std::vector<ImageAndExposure*> preloadedImages;
 	std::vector<std::string> files;
 	std::vector<double> timestamps;
-	std::vector<float> exposures;
+    std::vector<long long> ids; // Saves the ids that are used by e.g. the EuRoC dataset.
+    std::vector<float> exposures;
 
 	int width, height;
 	int widthOrg, heightOrg;

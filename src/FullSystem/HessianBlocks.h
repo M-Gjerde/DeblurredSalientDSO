@@ -122,6 +122,9 @@ struct FrameHessian
 
 	// Saliency map
 	float* saliency_;
+	// Saliency map
+	float* blur_ = nullptr;
+    bool useBlur = false;
 
 	// Segmentation
 	unsigned char* segmentation_;
@@ -273,7 +276,8 @@ struct FrameHessian
 
 
     void makeImages(float* color, CalibHessian* HCalib,
-    	SaliencyUtil::SaliencyContainer* saliency_container=NULL);
+    	SaliencyUtil::SaliencyContainer* saliency_container=NULL,
+    	SaliencyUtil::SaliencyContainer* blur_container=NULL);
 
 	inline Vec10 getPrior()
 	{

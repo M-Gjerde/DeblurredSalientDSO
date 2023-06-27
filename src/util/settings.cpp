@@ -206,6 +206,7 @@ bool setting_render_displayVideo = true;
 bool setting_render_displayDepth = true;
 bool setting_render_displaySelection = true;
 bool setting_render_displaySaliency = true;
+bool setting_render_displayBlur = true;
 bool setting_render_displayKF = true;
 
 bool setting_fullResetRequested = false;
@@ -316,7 +317,7 @@ int staticPatternPadding[10] = {
 bool setting_constant_smoothing = false;
 bool setting_average_smoothing = false;
 bool setting_blob_smoothing = false;
-bool setting_segmentation_smoothing = false;
+bool setting_segmentation_smoothing = true;
 
 int setting_minSaliencyHistAdd = 127;
 float setting_minSaliencyMeanWeight = 1.0;

@@ -54,12 +54,15 @@
 
 std::string vignette = "";
 std::string gammaCalib = "";
+std::string useDeblur = "";
 std::string source = "";
 std::string saliency = "";
-std::string segmentation = "";
+std::string blurPath = "";
+std::string dso_segmentation = "";
 std::string calib = "";
 std::string calib_no_rect = "";
 std::string result_file = "result.txt";
+std::string result_kf_file = "result.txt";
 std::string points_file = "points.txt";
 double rescale = 1;
 bool reverse = false;
@@ -284,10 +287,23 @@ void parseArgument(char* arg)
         return;
     }
 
+    if(1==sscanf(arg,"blur=%s",buf))
+    {
+        blurPath = buf;
+        printf("loading data from %s!\n", blurPath.c_str());
+        return;
+    }
+    if(1==sscanf(arg,"useDeblur=%s",buf))
+    {
+        useDeblur = buf;
+        printf("Using DeBlurred images %s!\n", useDeblur.c_str());
+        return;
+    }
+
     if(1==sscanf(arg,"segmentation=%s",buf))
     {
-        segmentation = buf;
-        printf("loading data from %s!\n", segmentation.c_str());
+        dso_segmentation = buf;
+        printf("loading data from %s!\n", dso_segmentation.c_str());
         return;
     }
 
@@ -323,10 +339,16 @@ void parseArgument(char* arg)
         return;
     }
 
-    if(1==sscanf(arg,"result=%s",buf))
+    if(1==sscanf(arg,"resultPath=%s",buf))
     {
         result_file = buf;
         printf("output data to %s!\n", result_file.c_str());
+        return;
+    }
+    if(1==sscanf(arg,"resultPathKfOnly=%s",buf))
+    {
+        result_kf_file = buf;
+        printf("output data to %s!\n", result_kf_file.c_str());
         return;
     }
 
@@ -487,12 +509,18 @@ int main( int argc, char** argv )
             exit(1);
         }
     }
+    ImageFolderReader* blur_reader = NULL;
+    if (USE_BLUR) {
+        assert(blurPath != "");
+        blur_reader = new ImageFolderReader(blurPath, calib_no_rect, "", "");
+        // saliency_reader->setGlobalCalibration();
+    }
 
     // Segmentation
     ImageFolderReader* segmentation_reader = NULL;
     if (setting_segmentation_smoothing) {
-        assert(segmentation != "");
-        segmentation_reader = new ImageFolderReader(segmentation, calib_no_rect, "", "");
+        assert(dso_segmentation != "");
+        segmentation_reader = new ImageFolderReader(dso_segmentation, calib_no_rect, "", "");
         // segmentation_reader->setGlobalCalibration();
         if (segmentation_reader->getNumImages() != reader->getNumImages()) {
             printf("ERROR: gray image and segmentation input have different num of images.");
@@ -590,11 +618,19 @@ int main( int argc, char** argv )
                 int i = idsToPlay[ii];
                 preloaded_saliency.push_back(saliency_reader->getImage(i));
             }
+        }        // Saliency
+        std::vector<ImageAndExposure*> preloaded_blur;
+        if (preload && USE_BLUR && blurPath != "") {
+            printf("LOADING ALL BLUR!\n");
+            for (int ii = 0; ii < static_cast<int>(idsToPlay.size()); ii++) {
+                int i = idsToPlay[ii];
+                preloaded_blur.push_back(blur_reader->getImage(i));
+            }
         }
 
         // Segmentation
         std::vector<ImageAndExposure*> preloaded_segmentation;
-        if (preload && setting_segmentation_smoothing && segmentation != "") {
+        if (preload && setting_segmentation_smoothing && dso_segmentation != "") {
             printf("LOADING ALL SEGMENTATION!\n");
             for (int ii = 0; ii < static_cast<int>(idsToPlay.size()); ii++) {
                 int i = idsToPlay[ii];
@@ -635,9 +671,19 @@ int main( int argc, char** argv )
                 }
             }
 
+            // Saliency
+            ImageAndExposure* blur_img = NULL;
+            if (USE_BLUR && blurPath != "") {
+                if (preload) {
+                    blur_img = preloaded_blur[ii];
+                } else {
+                    blur_img = blur_reader->getImage(i);
+                }
+            }
+
             // Segmentation
             ImageAndExposure* segmentation_img = NULL;
-            if (setting_segmentation_smoothing && segmentation != "") {
+            if (setting_segmentation_smoothing && dso_segmentation != "") {
                 if (preload) {
                     segmentation_img = preloaded_segmentation[ii];
                 } else {
@@ -662,10 +708,19 @@ int main( int argc, char** argv )
 
             if (!skipFrame) {
                 // Saliency
-                if (USE_SALIENCY && saliency_img != NULL) {
+                if (USE_SALIENCY && saliency_img != NULL && useDeblur == "on" && blur_img != NULL) {
+                    SaliencyUtil::SaliencyContainer *saliency_container = new
+                            SaliencyUtil::SaliencyContainer(saliency_img,
+                                                            segmentation_img);
+
+                    SaliencyUtil::SaliencyContainer *blur_container = new
+                            SaliencyUtil::SaliencyContainer(blur_img);
+                    fullSystem->addActiveFrame(img, i, saliency_container, blur_container);
+                }else if(USE_SALIENCY && saliency_img != NULL) {
                     SaliencyUtil::SaliencyContainer* saliency_container = new
-                        SaliencyUtil::SaliencyContainer(saliency_img,
-                        segmentation_img);
+                            SaliencyUtil::SaliencyContainer(saliency_img,
+                                                            segmentation_img);
+
                     fullSystem->addActiveFrame(img, i, saliency_container);
                 } else {
                     fullSystem->addActiveFrame(img, i);
@@ -680,6 +735,10 @@ int main( int argc, char** argv )
             // Saliency
             if (USE_SALIENCY && saliency_img != NULL) {
                 delete saliency_img;
+            }
+            // Saliency
+            if (USE_BLUR && blur_img != NULL) {
+                delete blur_img;
             }
 
             // Segmentation
@@ -722,7 +781,8 @@ int main( int argc, char** argv )
         gettimeofday(&tv_end, NULL);
 
         if (!fullSystem->isLost) {
-            fullSystem->printResult(result_file);
+            fullSystem->printResult(result_file, false);
+            fullSystem->printResult(result_kf_file, true);
         }
 
 
@@ -745,12 +805,14 @@ int main( int argc, char** argv )
         //fullSystem->printFrameLifetimes();
         if(setting_logStuff)
         {
+            printf("Logging stuff from logstuff into logs/time.txt\n");
             std::ofstream tmlog;
             tmlog.open("logs/time.txt", std::ios::trunc | std::ios::out);
             tmlog << 1000.0f*(ended-started)/(float)(CLOCKS_PER_SEC*reader->getNumImages()) << " "
                   << ((tv_end.tv_sec-tv_start.tv_sec)*1000.0f + (tv_end.tv_usec-tv_start.tv_usec)/1000.0f) / (float)reader->getNumImages() << "\n";
             tmlog.flush();
             tmlog.close();
+            printf("Done Logging stuff from logstuff\n");
         }
 
     });
@@ -758,13 +820,17 @@ int main( int argc, char** argv )
 
     if(viewer != 0)
         viewer->run();
+        printf("Joining runthread\n");
 
     runthread.join();
+        printf("DOne joining runthread");
 
     for(IOWrap::Output3DWrapper* ow : fullSystem->outputWrapper)
     {
+        printf("Joining outputwrapper\n");
         ow->join();
         delete ow;
+        printf("DOne joining outputwrapper");
     }
 
 
@@ -778,6 +844,10 @@ int main( int argc, char** argv )
     if (USE_SALIENCY && saliency != "") {
         printf("DELETE SALIENCY READER!\n");
         delete saliency_reader;
+    }
+    if (USE_BLUR && blurPath != "") {
+        printf("DELETE BLUR READER!\n");
+        delete blur_reader;
     }
 
     printf("EXIT NOW!\n");

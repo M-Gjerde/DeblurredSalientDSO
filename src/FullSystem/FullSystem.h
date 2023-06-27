@@ -138,7 +138,8 @@ public:
 
 	// adds a new frame, and creates point & residual structs.
 	void addActiveFrame(ImageAndExposure* image, int id,
-						SaliencyUtil::SaliencyContainer* saliency_container=NULL);
+						SaliencyUtil::SaliencyContainer* saliency_container=NULL,
+						SaliencyUtil::SaliencyContainer* blur_container=NULL);
 
 	// marginalizes a frame. drops / marginalizes points & residuals.
 	void marginalizeFrame(FrameHessian* frame);
@@ -146,7 +147,7 @@ public:
 
 	float optimize(int mnumOptIts);
 
-	void printResult(std::string file);
+	void printResult(std::string file, bool b);
 
 	void debugPlot(std::string name);
 

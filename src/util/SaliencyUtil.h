@@ -18,6 +18,9 @@ struct SaliencyContainer {
   SaliencyContainer(ImageAndExposure* saliency, ImageAndExposure* segmentation)
     : saliency_(saliency), segmentation_(segmentation) {}
 
+    SaliencyContainer(ImageAndExposure* saliency)
+    : saliency_(saliency) {}
+
   ~SaliencyContainer() {}
 
   // member
@@ -40,9 +43,9 @@ class SaliencySmoother {
 
   // Down weighted or up weighted saliency of each pixel based on segmentation
   // and predefined mapping.
-  void SmoothBySegmentation(float* saliency, unsigned char* segmentation,
+  void SmoothBySegmentation(float* saliency, const float* blur_map, unsigned char* segmentation,
     int width, int height,
-    const float* weights_map, const int label_max=149);
+    const float* weights_map,  const int label_max=149);
 
   // Calculate saliency weight for each patch by finding the dominant
   // segmentation class and using it's probability vector of class to

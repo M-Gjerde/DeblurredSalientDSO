@@ -242,7 +242,7 @@ void FullSystem::setGammaFunction(float* BInv)
 
 
 
-void FullSystem::printResult(std::string file)
+void FullSystem::printResult(std::string file, bool kfOnly)
 {
 	boost::unique_lock<boost::mutex> lock(trackMutex);
 	boost::unique_lock<boost::mutex> crlock(shellPoseMutex);
@@ -255,7 +255,7 @@ void FullSystem::printResult(std::string file)
 	{
 		if(!s->poseValid) continue;
 
-		if(setting_onlyLogKFPoses && s->marginalizedAt == s->id) continue;
+		if(kfOnly && s->marginalizedAt == s->id) continue;
 
 		myfile << s->timestamp <<
 			" " << s->camToWorld.translation().transpose()<<
@@ -645,7 +645,7 @@ void FullSystem::activatePointsMT()
 	std::vector<PointHessian*> optimized; optimized.resize(toOptimize.size());
 
 	if(multiThreading)
-		treadReduce.reduce(boost::bind(&FullSystem::activatePointsMT_Reductor, this, &optimized, &toOptimize, _1, _2, _3, _4), 0, toOptimize.size(), 50);
+		treadReduce.reduce(boost::bind(&FullSystem::activatePointsMT_Reductor, this, &optimized, &toOptimize, boost::placeholders::_1, boost::placeholders::_2, boost::placeholders::_3, boost::placeholders::_4), 0, toOptimize.size(), 50);
 
 	else
 		activatePointsMT_Reductor(&optimized, &toOptimize, 0, toOptimize.size(), 0, 0);
@@ -802,7 +802,8 @@ void FullSystem::flagPointsForRemoval()
 
 
 void FullSystem::addActiveFrame( ImageAndExposure* image, int id,
-								 SaliencyUtil::SaliencyContainer* saliency_container)
+								 SaliencyUtil::SaliencyContainer* saliency_container,
+								 SaliencyUtil::SaliencyContainer* blur_container)
 {
 
     if(isLost) return;
@@ -823,7 +824,9 @@ void FullSystem::addActiveFrame( ImageAndExposure* image, int id,
 
 	// =========================== make Images / derivatives etc. =========================
 	fh->ab_exposure = image->exposure_time;
-	if (saliency_container != NULL) {
+	if (saliency_container != NULL && blur_container != NULL) {
+		fh->makeImages(image->image, &Hcalib, saliency_container, blur_container);
+	} else if (saliency_container != NULL) {
 		fh->makeImages(image->image, &Hcalib, saliency_container);
 	} else {
     	fh->makeImages(image->image, &Hcalib);
@@ -1183,7 +1186,7 @@ void FullSystem::makeKeyFrame( FrameHessian* fh)
 
     for(IOWrap::Output3DWrapper* ow : outputWrapper)
     {
-        ow->publishGraph(ef->connectivityMap);
+        //ow->publishGraph(ef->connectivityMap);
         ow->publishKeyframes(frameHessians, false, &Hcalib);
 
         // To visualize frames with saliency and features' selection.

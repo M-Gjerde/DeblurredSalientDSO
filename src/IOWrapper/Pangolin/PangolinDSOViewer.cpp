@@ -54,15 +54,18 @@ PangolinDSOViewer::PangolinDSOViewer(int w, int h, bool startRunThread)
 		internalKFImg = new MinimalImageB3(w,h);
 		internalResImg = new MinimalImageB3(w,h);
 		internalSaliencyImg = new MinimalImageB3(w,h);
+        internalDeblurDiffImg = new MinimalImageB3(w,h);
 		internalSelectionImg = new MinimalImageB3(w,h);
 		videoImgChanged=kfImgChanged=resImgChanged=true;
 		saliencyImgChanged = true;
+		deblurdiffImgChanged = true;
 		selectionImgChanged = true;
 
 		internalVideoImg->setBlack();
 		internalKFImg->setBlack();
 		internalResImg->setBlack();
 		internalSaliencyImg->setBlack();
+        internalDeblurDiffImg->setBlack();
 		internalSelectionImg->setBlack();
 	}
 
@@ -114,11 +117,15 @@ void PangolinDSOViewer::run()
 	pangolin::View& d_saliency = pangolin::Display("imgSaliency")
 	    .SetAspect(w/(float)h);
 
+	pangolin::View& d_deblurDiff = pangolin::Display("imgDeblurDiff")
+	    .SetAspect(w/(float)h);
+
 	pangolin::View& d_selection = pangolin::Display("imgSelection")
 	    .SetAspect(w/(float)h);
 
 	pangolin::GlTexture texKF(w,h,GL_RGB,false,0,GL_RGB,GL_UNSIGNED_BYTE);
 	pangolin::GlTexture texSaliency(w,h,GL_RGB,false,0,GL_RGB,GL_UNSIGNED_BYTE);
+	pangolin::GlTexture texDeblurDiff(w,h,GL_RGB,false,0,GL_RGB,GL_UNSIGNED_BYTE);
 	pangolin::GlTexture texSelection(w,h,GL_RGB,false,0,GL_RGB,GL_UNSIGNED_BYTE);
 
 
@@ -127,6 +134,7 @@ void PangolinDSOViewer::run()
 		  .SetLayout(pangolin::LayoutEqual)
 		  .AddDisplay(d_kf)
 		  .AddDisplay(d_saliency)
+		  .AddDisplay(d_deblurDiff)
 		  .AddDisplay(d_selection);
 
 	// parameter reconfigure gui
@@ -204,9 +212,10 @@ void PangolinDSOViewer::run()
 
 		openImagesMutex.lock();
 		if(saliencyImgChanged) 	texSaliency.Upload(internalSaliencyImg->data,GL_BGR,GL_UNSIGNED_BYTE);
+		if(deblurdiffImgChanged) 	texDeblurDiff.Upload(internalDeblurDiffImg->data,GL_BGR,GL_UNSIGNED_BYTE);
 		if(kfImgChanged) 		texKF.Upload(internalKFImg->data,GL_BGR,GL_UNSIGNED_BYTE);
 		if(selectionImgChanged) 		texSelection.Upload(internalSelectionImg->data,GL_BGR,GL_UNSIGNED_BYTE);
-		saliencyImgChanged=kfImgChanged=selectionImgChanged=false;
+		saliencyImgChanged=kfImgChanged=selectionImgChanged=deblurdiffImgChanged =false;
 		openImagesMutex.unlock();
 
 
@@ -234,6 +243,12 @@ void PangolinDSOViewer::run()
 			d_saliency.Activate();
 			glColor4f(1.0f,1.0f,1.0f,1.0f);
 			texSaliency.RenderToViewportFlipY();
+		}
+		if(setting_render_displayBlur)
+		{
+			d_deblurDiff.Activate();
+			glColor4f(1.0f,1.0f,1.0f,1.0f);
+			texDeblurDiff.RenderToViewportFlipY();
 		}
 
 		if(setting_render_displayKF)
@@ -519,23 +534,35 @@ void PangolinDSOViewer::pushLiveFrame(FrameHessian* image)
     if(disableAllDisplay) return;
 
 	boost::unique_lock<boost::mutex> lk(openImagesMutex);
+    cv::Mat originalImg(h, w, CV_8UC1);
 
-	for(int i=0;i<w*h;i++)
-		internalKFImg->data[i][0] =
-		internalKFImg->data[i][1] =
-		internalKFImg->data[i][2] =
-			image->dI[i][0]*0.8 > 255.0f ? 255.0 : image->dI[i][0]*0.8;
+	for(int i=0;i<w*h;i++) {
+        internalKFImg->data[i][0] =
+        internalKFImg->data[i][1] =
+        internalKFImg->data[i][2] =
+                image->dI[i][0] * 0.8 > 255.0f ? 255.0 : image->dI[i][0] * 0.8;
 
+    }
+
+    for (int x = 0; x < w; x++){
+        for (int y = 0; y < h; y++){
+            originalImg.at<unsigned char>(y, x) = (unsigned char) internalKFImg->data[x + y * w][0];
+        }
+    }
+
+
+    cv::Mat result_mat;
     if (setting_render_displaySaliency && image->saliency_ != NULL) {
-	    cv::Mat saliency_mat = cv::Mat(h, w, CV_32FC1, image->saliency_);
+        cv::Mat saliency_mat = cv::Mat(h, w, CV_32FC1, image->saliency_);
 	    double min = 0.0;
 	    double max = 255.0;
 	    cv::minMaxIdx(saliency_mat, &min, &max);
 	    cv::Mat adj_mat;
 	    float scale = 255.0 / (max - min);
 	    saliency_mat.convertTo(adj_mat, CV_8UC1, scale, -min * scale);
-	    cv::Mat result_mat;
 	    cv::applyColorMap(adj_mat, result_mat, cv::COLORMAP_JET);
+
+
 	    for(int i=0;i<w*h;i++) {
 		    internalSaliencyImg->data[i][0] = result_mat.at<cv::Vec3b>( i / w, i % w)[0];
 		    internalSaliencyImg->data[i][1] = result_mat.at<cv::Vec3b>( i / w, i % w)[1];
@@ -543,13 +570,53 @@ void PangolinDSOViewer::pushLiveFrame(FrameHessian* image)
 			// image->saliency_[i]*0.8 > 255.0f ? 255.0 : image->saliency_[i]*0.8;
 	    }
     }
+    cv::Mat deblurMat;
+    if (setting_render_displayBlur && image->blur_ != NULL) {
+	    cv::Mat blur_mat = cv::Mat(h, w, CV_32FC1, image->blur_);
 
+	    double min = 0.0;
+	    double max = 255.0;
+	    cv::minMaxIdx(blur_mat, &min, &max);
+	    cv::Mat adj_mat;
+	    float scale = 255.0 / (max - min);
+	    blur_mat.convertTo(deblurMat, CV_8UC1, scale, -min * scale);
+        cv::cvtColor(deblurMat, deblurMat, cv::COLOR_GRAY2BGR);
+	    //cv::applyColorMap(adj_mat, deblurMat, cv::COLORMAP_JET);
+	    for(int i=0;i<w*h;i++) {
+		    internalDeblurDiffImg->data[i][0] = deblurMat.at<cv::Vec3b>( i / w, i % w)[0];
+		    internalDeblurDiffImg->data[i][1] = deblurMat.at<cv::Vec3b>( i / w, i % w)[1];
+		    internalDeblurDiffImg->data[i][2] = deblurMat.at<cv::Vec3b>( i / w, i % w)[2];
+			// image->saliency_[i]*0.8 > 255.0f ? 255.0 : image->saliency_[i]*0.8;
+	    }
+    }
+
+    cv::Mat img;
 	if (image->debugImage != NULL) {
 		memcpy(internalSelectionImg->data, image->debugImage->data, w*h*3);
+
+        img = cv::Mat(h, w, CV_8UC3, image->debugImage->data);
+
 	}
+
+
+    if(!img.empty() && !result_mat.empty() && !deblurMat.empty() && !originalImg.empty()) {
+        //cv::imshow("saliencySegmentedMap", result_mat);
+        //cv::imshow("pointSelect", img);
+        //cv::imshow("deblurMat", deblurMat);
+        //cv::imshow("originalImg", originalImg);
+        int key = 0; //cv::waitKey(0);
+        if (key == 's') {
+            cv::imwrite("outputPoint" + std::to_string(image->frameID) + ".png", img);
+            cv::imwrite("outputSaliency" + std::to_string(image->frameID) + ".png", result_mat);
+            cv::imwrite("outputdeblur" + std::to_string(image->frameID) + ".png", deblurMat);
+            cv::imwrite("outputOriginal" + std::to_string(image->frameID) + ".png", originalImg);
+        }
+    }
+
 
 	kfImgChanged = true;
 	saliencyImgChanged=true;
+    deblurdiffImgChanged = true;
 	selectionImgChanged = true;
 }
 

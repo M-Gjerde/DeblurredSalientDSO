@@ -1,16 +1,32 @@
-# SalientDSO
+# DeblurredSalientDSO
 
-Bringing attention to Direct Sparse Odometry
+DeblurredSalientDSO
 
 ## 1. What?
-This is the accompanying source code for the paper **[SalientDSO: Bringing attention to Direct Sparse Odometry](https://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=8671715)** published in IEEE Transactions in Autonmation Science and Engineering. Visit our [project page](http://prg.cs.umd.edu/SalientDSO) for more details.
-
-
-## 2. Video
-[![ SalientDSO: Bringing attention to Direct Sparse Odometry](assets/Video.PNG)](https://www.youtube.com/watch?v=JQnF_yYk0wI)
+This is the accompanying source code for the paper **[DeblurredSalientDSO](https://ieeexplore.ieee.org)**
 
 ## 3. Citation
-If you use this for your research please cite:
+Cite the paper if it is usefull to you:
+
+```
+@ARTICLE{, 
+author={}, 
+journal={}, 
+title={}, 
+year={}, 
+volume={}, 
+number={}, 
+pages={}, 
+keywords={}, 
+doi={}, 
+ISSN={}, 
+month={},}
+```
+
+
+
+
+Also, citing the original SalientDSO paper is appreciated.
 
 ```
 @ARTICLE{salientdso, 
@@ -46,67 +62,13 @@ month={March},}
 
 ## 4. Setup Instructions
 
-These instructions will get you a copy of the project up and running on your local machine for development and testing purposes.
-
-### 4.1. Prerequisites
-
-You need to have the following packages on your machine.
-
-* [Eigen3](http://eigen.tuxfamily.org/index.php?title=Main_Page) - Eigen
-* [OpenCV](https://opencv.org) - OpenCV
-* [Pangolin](https://github.com/stevenlovegrove/Pangolin) - Pangolin
-
-### 4.2. Installing
-
-```
-git clone git@github.com:huaijenliang/SalientDSO-pub.git
-```
-
-#### 4.2.1. Required Dependencies
-- suitesparse and eigen3.
-
-Install using
-
-```
-sudo apt-get install libsuitesparse-dev libeigen3-dev libboost-all-dev
-```
-
-- OpenCV 
-
-Install using
-
-```
-sudo apt-get install libopencv-dev
-
-``` 
-
-- Pangolin
-
-Install from [https://github.com/stevenlovegrove/Pangolin](https://github.com/stevenlovegrove/Pangolin)
-
-- ziplib
-
-
-```
-sudo apt-get install zlib1g-dev
-cd dso/thirdparty
-tar -zxvf libzip-1.1.1.tar.gz
-cd libzip-1.1.1/
-./configure
-make
-sudo make install
-sudo cp lib/zipconf.h /usr/local/include/zipconf.h   # (no idea why that is needed).
-```
-
-- sse2neon (For ARM builds only)
-After cloning, just run ```git submodule update --init``` to include this. It translates Intel-native SSE functions to ARM-native NEON functions during the compilation process.
-
+#### 4.1 Prerequisites
+Follow prerequisites for the [SalientDSO](https://github.com/prgumd/SalientDSO) 
 
 #### 4.2.2. Building
-Test if the original DSO setting works first. Compile using ```USE_SALIENCY_SAMPLING=false``` in ```setting.h``` and build using the following instructions.
-
+Compile as:
 ```
-cd dso
+cd DeblurredSalientDSO
 mkdir build
 cd build
 cmake ..
@@ -122,46 +84,12 @@ this will compile a library ```libdso.a```, which can be linked from external pr
 ### 5. Usage
 
 
-#### 5.1. Test DSO Setting
-Run on a dataset from [https://vision.in.tum.de/mono-dataset](https://vision.in.tum.de/mono-dataset) using
-
+#### 5.1. Test Deblurred Semantic Filtered Saliency Setting (SalientDSO's proposed approach)
+Recompile using ```USE_SALIENCY_SAMPLING=true``` in ```setting.h``` to use this functionality. 
 ```
 DATASETPATH=Path to your dataset
-build/bin/dso_dataset files=$DATASETPATH/images.zip calib=$DATASETPATH/camera.txt gamma=$DATASETPATH/pcalib.txt vignette=$DATASETPATH/vignette.png preset=0 mode=0
-```
-
-#### 5.2. Test Saliency Setting
-Recompile using ```USE_SALIENCY_SAMPLING=true``` in ```setting.h``` to use this functionality. First install SalGAN from [here](https://github.com/imatge-upc/salgan) and run it on your dataset. Store the saliency images in ```.png``` format in a folder.
-
-
-Run on a dataset from [https://vision.in.tum.de/mono-dataset](https://vision.in.tum.de/mono-dataset) using (this assumes that the saliency files are stored in the dataset in ```DATASETFOLDER/saliency/``` folder).
-
-
-```
-DATASETPATH=Path to your dataset
-build/bin/dso_dataset files=$DATASETPATH/images.zip calib=$DATASETPATH/camera.txt gamma=$DATASETPATH/pcalib.txt vignette=$DATASETPATH/vignette.png saliency=$DATASETPATH/saliency/ preset=0 mode=0 smoothing=1
-
-```
-
-
-#### 5.3. Test Semantic Filtered Saliency Setting (SalientDSO's proposed approach)
-Recompile using ```USE_SALIENCY_SAMPLING=true``` in ```setting.h``` to use this functionality. First install SalGAN from [here](https://github.com/imatge-upc/salgan) and run it on your dataset. Store the saliency images in ```.png``` format in a folder. Also, run scene parsing using PSPNet from [here](https://github.com/hellochick/PSPNet-tensorflow) and run it on your dataset. Store the saliency images in ```.png``` format in a folder. One can write a simple shell script around the provided [inference code](https://github.com/hellochick/PSPNet-tensorflow/blob/master/inference.py) to run on the entire dataset. For people with experience in tensorflow, the original python code can be modified accordingly. 
-
-Run on a dataset from [https://vision.in.tum.de/mono-dataset](https://vision.in.tum.de/mono-dataset) using (this assumes that the saliency files are stored in the dataset folder in ```DATASETFOLDER/saliency/``` folder and scene parsing is stored in the dataset folder ```DATASETFOLDER/segmentation```).
-
-
-```
-DATASETPATH=Path to your dataset
-build/bin/dso_dataset files=DATASETPATH/images.zip calib=DATASETPATH/camera.txt gamma=DATASETPATH/pcalib.txt vignette=DATASETPATH/vignette.png saliency=DATASETPATH/saliency/ segmentation=DATASETPATH/segmentation/ preset=0 mode=0 smoothing=2
-
-```
-
-#### 5.4. Running on CVL-UMD dataset
-Download the dataset from [here](https://drive.google.com/file/d/1u5-jbQl6igESv0L05E5TTwLBeGnE807b/view?usp=sharing). Recompile using ```USE_SALIENCY_SAMPLING=true``` in ```setting.h``` to use this functionality. Run using the following instructions. 
-
-```
-DATASETPATH=Path to your dataset
-build/bin/dso_dataset files=DATASETPATH/images calib=DATASETPATH/camera.txt saliency=DATASETPATH/saliency segmentation=DATASETPATH/segmentations/ calib_no_rect=DATASETPATH/camera.txt result=cvl_02_seg_0.txt preset=0 mode=1 quiet=1 saliencyAdd=0 saliencyMeanWeight=60.0 immatureDensity=1000 smoothing=2 patchSize=8 sampleoutput=1 points=pointclouds/pts_cvl_02_seg_0.txt
+build/bin/dso_dataset files=DATASETPATH/images.zip calib=DATASETPATH/camera.txt gamma=DATASETPATH/pcalib.txt vignette=DATASETPATH/vignette.png saliency=DATASETPATH/saliency/ segmentation=DATASETPATH/segmentation/ preset=0 mode=0 smoothing=2  \ 
+useDeblur=on
 
 ```
 
@@ -189,33 +117,7 @@ there are many command line options available, see `main_dso_pangolin.cpp`. some
 - `points=XXX` : set the path to the output 3D point cloud(sampleoutput has to be set to 1)
 
 
-## 6. CVL Dataset and other datasets with saliency and scene parsing outputs
-The CVL dataset can be downloaded from [here](https://drive.google.com/file/d/1u5-jbQl6igESv0L05E5TTwLBeGnE807b/view?usp=sharing). It contains the following directory structure once extracted.
-
-
-```
-CVL
-├── 01 
-|   ├── images
-|   |	└── *.png
-|   ├── saliency
-|   |	└── *.jpg
-|   ├── segmentations
-|   |	└── *.png
-|   ├── camera.txt
-|   └── times.txt
-└── 02
-    ├── images
-    |	└── *.png
-    ├── saliency
-    |	└── *.jpg
-    ├── segmentations
-    | 	└── *.png
-    ├── camera.txt
-    └── times.txt
-
-```
 
 ## 7. Acknowledgments
 
-We would like to thank the authors of [DSO](https://github.com/JakobEngel/dso) on which this code is based on.
+We would like to thank the authors of [DSO](https://github.com/JakobEngel/dso) and [SalientDSO](https://github.com/prgumd/SalientDSO) on which this code is based on.

@@ -41,10 +41,13 @@ float SaliencySmoother::SmoothByBlob(float* saliency, int width, int height) {
 
 
 // TODO
-void SaliencySmoother::SmoothBySegmentation(float* saliency,
+void SaliencySmoother::SmoothBySegmentation(float* saliency,const float* blur_map,
     unsigned char* segmentation, int width, int height,
     const float* weights_map, const int label_max) {
 
+    //cv::Mat mat(height, width, CV_8UC1, segmentation);
+    //cv::imshow("segmentation", mat);
+    //cv::waitKey(0);
   ReplaceWithClassMedian(saliency, segmentation, width, height, label_max);
 
   for (int h = 0; h < height; h++) {
@@ -56,7 +59,13 @@ void SaliencySmoother::SmoothBySegmentation(float* saliency,
       if (label > label_max) {
         continue;
       }
-      saliency[index] *= weights_map[label];
+      float blurNormalized = (blur_map[index] / 255.0f); // No blur i.e. white image, blurNormalized = 1.0f
+      // Lots of blur, then blurNormalized approaches zero.
+      float invertedBlur = 1 - blurNormalized; // Reverse so we weigh in on blurred areas
+      //float invertedBlur = 1 / blurNormalized; // Reverse so we weigh in on blurred areas
+      //printf("Blur normalized %f\n", blurNormalized);
+      saliency[index] *= weights_map[label] * invertedBlur;
+      //saliency[index] *= (invertedBlur);
     }
   }
 }
@@ -87,12 +96,12 @@ float SaliencySmoother::PredictSmoothingFactor(float* saliency, int width, int h
   // DrawMatchesFlags::DRAW_RICH_KEYPOINTS flag ensures
   // the size of the circle corresponds to the size of blob
 
-  // Mat im_with_keypoints;
-  // drawKeypoints( saliency_mat, keypoints, im_with_keypoints, Scalar(0,0,255), DrawMatchesFlags::DRAW_RICH_KEYPOINTS );
+  Mat im_with_keypoints;
+  drawKeypoints( saliency_mat, keypoints, im_with_keypoints, Scalar(0,0,255), DrawMatchesFlags::DRAW_RICH_KEYPOINTS );
 
   // Show blobs
-  // imshow("keypoints", im_with_keypoints );
-  // waitKey(0);
+  imshow("keypoints", im_with_keypoints );
+  //waitKey(0);
 
   return DecideFactor(keypoints);
 }

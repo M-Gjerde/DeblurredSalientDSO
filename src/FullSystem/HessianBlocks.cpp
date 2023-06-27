@@ -126,7 +126,8 @@ void FrameHessian::release()
 
 
 void FrameHessian::makeImages(float* color, CalibHessian* HCalib,
-		SaliencyUtil::SaliencyContainer* saliency_container)
+		SaliencyUtil::SaliencyContainer* saliency_container,
+                              SaliencyUtil::SaliencyContainer* blur_container)
 {
 
 	for(int i=0;i<pyrLevelsUsed;i++)
@@ -172,6 +173,33 @@ void FrameHessian::makeImages(float* color, CalibHessian* HCalib,
     	}
     }
 
+
+    if (blur_container != NULL) {
+		// Copy saliency
+		if (blur_container->saliency_ != NULL) {
+
+/*
+            cv::Mat img = cv::Mat(h, w, CV_32FC1, blur_container->saliency_->image);
+            img.convertTo(img, CV_8UC1);
+            cv::imshow("display", img);
+            cv::waitKey(0);
+*/
+
+			if (blur_ != NULL) {
+				delete [] blur_;
+			}
+			blur_ = new float [w * h];
+            useBlur = true;
+
+			float* blur = blur_container->saliency_->image;
+        	for (int i = 0; i < (w * h); i++) {
+                blur_[i] = blur[i];
+        	}
+    	}
+    } else {
+        useBlur = false;
+
+    }
 	for(int lvl=0; lvl<pyrLevelsUsed; lvl++)
 	{
 		int wl = wG[lvl], hl = hG[lvl];

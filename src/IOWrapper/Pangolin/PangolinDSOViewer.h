@@ -97,9 +97,11 @@ private:
 	MinimalImageB3* internalKFImg;
 	MinimalImageB3* internalResImg;
 	MinimalImageB3* internalSaliencyImg;
+	MinimalImageB3* internalDeblurDiffImg;
 	MinimalImageB3* internalSelectionImg;
 	bool videoImgChanged, kfImgChanged, resImgChanged;
 	bool saliencyImgChanged;
+	bool deblurdiffImgChanged;
 	bool selectionImgChanged;
 
 

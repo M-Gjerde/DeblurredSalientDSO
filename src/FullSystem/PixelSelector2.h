@@ -65,6 +65,8 @@ private:
 
 	Eigen::Vector3i saliencySelect(const FrameHessian* const fh,
 			float* map_out, int pot, float thFactor=1);
+	Eigen::Vector3i saliencyBlurSelect(const FrameHessian* const fh,
+			float* map_out, int pot, float thFactor=1);
 
 	unsigned char* randomPattern;
 

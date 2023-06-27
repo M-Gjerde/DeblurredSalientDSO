@@ -105,7 +105,7 @@ public:
 			}
 
 			red->reduce(boost::bind(&AccumulatedSCHessianSSE::stitchDoubleInternal,
-				this,Hs, bs, EF,  _1, _2, _3, _4), 0, nframes[0]*nframes[0], 0);
+				this,Hs, bs, EF, boost::placeholders::_1, boost::placeholders::_2, boost::placeholders::_3, boost::placeholders::_4), 0, nframes[0]*nframes[0], 0);
 
 			// sum up results
 			H = Hs[0];
